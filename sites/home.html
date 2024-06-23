@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blobben Browser Home</title>
+    <link rel="stylesheet" href="./fontawesome/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #ff7e5f, #feb47b, #86a8e7, #91eae4);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #fff;
+        }
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .container {
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #fff;
+            margin-bottom: 1rem;
+        }
+        .search-bar {
+            width: 100%;
+            max-width: 584px;
+            margin-bottom: 2rem;
+        }
+        .search-bar input {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #dfe1e5;
+            border-radius: 24px;
+            outline: none;
+        }
+        .search-bar input:focus {
+            box-shadow: 0 1px 6px rgba(32,33,36,.28);
+            border-color: rgba(223,225,229,0);
+        }
+        .quick-links {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .quick-link {
+            text-decoration: none;
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+        }
+        .quick-link:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        .quick-link i {
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to Blobben Browser</h1>
+        <div class="search-bar">
+            <form id="search-form">
+                <input type="text" name="q" id="search-input" placeholder="Search the web">
+            </form>
+            <script>
+                document.getElementById('search-form').addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    var searchTerm = document.getElementById('search-input').value;
+                    window.blobbenSearch(searchTerm);
+                });
+            </script>
+        </div>
+        <div class="quick-links">
+            <a href="https://www.google.com" class="quick-link"><i class="fas fa-search"></i>Google</a>
+            <a href="https://www.youtube.com" class="quick-link"><i class="fas fa-video"></i>YouTube</a>
+            <a href="https://www.github.com" class="quick-link"><i class="fab fa-github"></i>GitHub</a>
+            <a href="https://www.wikipedia.org" class="quick-link"><i class="fas fa-book"></i>Wikipedia</a>
+        </div>
+    </div>
+</body>
+</html>
