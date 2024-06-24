@@ -13,6 +13,7 @@ from PyQt6.QtNetwork import QNetworkCookie
 # <a href="https://www.flaticon.com/free-icons/save" title="save icons">Save icons created by Bharat Icons - Flaticon</a>
 
 cwd = os.path.dirname(os.path.abspath(sys.argv[0]))
+version = "0.1"
 
 class DownloadManager(QObject):
     downloadStarted = pyqtSignal()
@@ -325,7 +326,7 @@ class Toolbar(QWidget):
 class Browser(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Blobben v0.1")
+        self.setWindowTitle(f"Blobben v{version}")
         self.setWindowIcon(QIcon(f"{cwd}/assets/icon.png"))
 
         self.tabs = QTabWidget()
@@ -442,7 +443,7 @@ class Browser(QMainWindow):
             tab = self.tabs.widget(i)
             if isinstance(tab, Toolbar):
                 tab.download_button.setIcon(QIcon(f"{cwd}/assets/download.png"))
-                
+
     def add_new_tab(self, qurl=None):
         if qurl is None or isinstance(qurl,bool):
             urlcwd = cwd.replace("\\","/")
@@ -468,6 +469,11 @@ class Browser(QMainWindow):
         self.tabs.setTabIcon(index, icon)
 
 if __name__ == "__main__":
+    if os.name == "nt":
+        import ctypes
+        if sys.argv[0].endswith("py"):
+            myappid = f'app.qwertz.blobben.{version}'
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     app = QApplication(sys.argv)
     window = Browser()
     window.show()
