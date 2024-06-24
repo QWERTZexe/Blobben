@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="../assets/icon.ico">
+    <title>Blobben - Downloads</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #ff7e5f, #feb47b, #86a8e7, #91eae4);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            color: #333;
+        }
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        #downloads-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .download-item {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            padding: 10px;
+            transition: box-shadow 0.3s ease;
+        }
+        .download-item:hover {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .download-item h3 {
+            margin: 0 0 10px 0;
+        }
+        .download-item p {
+            margin: 5px 0;
+        }
+        .download-item a {
+            color: #1a73e8;
+            text-decoration: none;
+        }
+        .download-item a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Downloads</h1>
+        <ul id="downloads-list"></ul>
+    </div>
+
+    <script>
+        function loadDownloads() {
+        fetch('../cache/downloads.json')
+            .then(response => response.json())
+            .then(downloads => {
+                // Reverse the array to show newest (last added) first
+                downloads.reverse();
+
+                const downloadsList = document.getElementById('downloads-list');
+                downloadsList.innerHTML = '';
+                downloads.forEach(download => {
+                    const li = document.createElement('li');
+                    li.className = 'download-item';
+                    li.innerHTML = `
+                        <h3><a href="#" onclick="showInExplorer('${download.path.replace(/\\/g, '/')}'); return false;">${download.filename}</a></h3>
+                        <p>URL: ${download.url}</p>
+                        <p>Status: ${download.status}</p>
+                        <p>Size: ${formatBytes(download.size)}</p>
+                    `;
+                    downloadsList.appendChild(li);
+                });
+            })
+            .catch(error => console.error('Error loading downloads:', error));
+        }
+
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        function showInExplorer(path) {
+            console.log(`Open in explorer$ ${path}`);
+        }
+
+        loadDownloads();
+    </script>
+</body>
+</html>
