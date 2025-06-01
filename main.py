@@ -1,5 +1,6 @@
+import socket
 import sys, os, json, subprocess
-from PyQt6.QtCore import QUrl, QSize, QDateTime, Qt, QByteArray, QObject, pyqtSignal
+from PyQt6.QtCore import QUrl, QSize, QDateTime, Qt, QByteArray, QObject, pyqtSignal, QTimer
 from PyQt6.QtWidgets import QApplication, QMainWindow, QToolBar, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QTabWidget, QFrame, QLabel, QProgressBar, QToolButton, QMenu, QTextEdit, QSplitter, QSplitter
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineDownloadRequest
@@ -13,8 +14,21 @@ from PyQt6.QtNetwork import QNetworkCookie
 # <a href="https://www.flaticon.com/free-icons/save" title="save icons">Save icons created by Bharat Icons - Flaticon</a>
 
 cwd = os.path.dirname(os.path.abspath(sys.argv[0]))
-version = "0.1"
+version = "0.2"
 
+HOST = "127.0.0.1"
+PORT = 58352  # Pick a port not in use
+
+def send_url_to_running_instance(url):
+    try:
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.connect((HOST, PORT))
+        client.send(url.encode())
+        client.close()
+        return True
+    except Exception:
+        return False
+    
 class DownloadManager(QObject):
     downloadStarted = pyqtSignal()
     downloadFinished = pyqtSignal()
@@ -448,7 +462,6 @@ class Browser(QMainWindow):
         if qurl is None or isinstance(qurl,bool):
             urlcwd = cwd.replace("\\","/")
             qurl = QUrl.fromLocalFile(f"{cwd}/sites/home.html")
-
         toolbar = Toolbar(self)
         toolbar.resetColor.connect(self.resetColors)
         toolbar.web_view.setUrl(qurl)
@@ -469,12 +482,37 @@ class Browser(QMainWindow):
         self.tabs.setTabIcon(index, icon)
 
 if __name__ == "__main__":
+    url = sys.argv[1] if len(sys.argv) > 1 else None
+    if url and send_url_to_running_instance(url):
+        sys.exit(0)
     if os.name == "nt":
         import ctypes
         if sys.argv[0].endswith("py"):
             myappid = f'app.qwertz.blobben.{version}'
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        # Set up the IPC server
     app = QApplication(sys.argv)
     window = Browser()
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind((HOST, PORT))
+    server.listen(1)
+    server.setblocking(False)
+    def check_for_new_urls():
+            try:
+                conn, _ = server.accept()
+                data = conn.recv(1024).decode()
+                if data:
+                    window.add_new_tab(QUrl(data))
+                conn.close()
+            except BlockingIOError:
+                pass  # No connection, just continue
+
+    # Use QTimer to poll the socket every 100ms
+    timer = QTimer()
+    timer.timeout.connect(check_for_new_urls)
+    timer.start(100)
     window.show()
+    if url:
+        window.add_new_tab(QUrl(url))
     sys.exit(app.exec())
