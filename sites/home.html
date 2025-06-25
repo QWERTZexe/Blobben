@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="../assets/icon.ico">
+    <link rel="icon" type="image/x-icon" href="./icon.ico">
     <title>Blobben - Home</title>
     <link rel="stylesheet" href="./fontawesome/css/all.min.css">
     <style>
@@ -19,6 +19,7 @@
             align-items: center;
             height: 100vh;
             color: #fff;
+            transition: background 0.5s, color 0.5s;
         }
         @keyframes gradient {
             0% { background-position: 0% 50%; }
@@ -31,6 +32,7 @@
             padding: 2rem;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: background 0.5s, color 0.5s;
         }
         h1 {
             color: #fff;
@@ -48,6 +50,9 @@
             border: 1px solid #dfe1e5;
             border-radius: 24px;
             outline: none;
+            background: #fff;
+            color: #222;
+            transition: background 0.3s, color 0.3s;
         }
         .search-bar input:focus {
             box-shadow: 0 1px 6px rgba(32,33,36,.28);
@@ -74,6 +79,31 @@
         .quick-link i {
             margin-right: 0.5rem;
         }
+
+        /* --- DARK MODE OVERRIDES --- */
+        body.dark {
+            background: #181c20;
+            color: #eee;
+        }
+        body.dark .container {
+            background-color: rgba(24,28,32,0.92);
+            color: #eee;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+        }
+        body.dark h1 {
+            color: #eee;
+        }
+        body.dark .search-bar input {
+            background: #222;
+            color: #eee;
+            border: 1px solid #444;
+        }
+        body.dark .quick-link {
+            color: #eee;
+        }
+        body.dark .quick-link:hover {
+            background-color: rgba(255,255,255,0.10);
+        }
     </style>
 </head>
 <body>
@@ -98,5 +128,33 @@
             <a href="https://www.wikipedia.org" class="quick-link"><i class="fas fa-book"></i>Wikipedia</a>
         </div>
     </div>
+    <script>
+        // Utility: load dark mode from settings.json, or fallback to localStorage, or system preference
+        function applyDarkMode(dark) {
+            document.body.classList.toggle('dark', !!dark);
+        }
+
+        // Try to load from settings.json (served by your backend)
+        fetch("http://localhost:7859/settings.json")
+            .then(res => res.json())
+            .then(settings => {
+                if ('darkMode' in settings) {
+                    applyDarkMode(settings.darkMode);
+                } else {
+                    // fallback: localStorage or system
+                    applyDarkMode(
+                        localStorage.getItem('darkMode') === 'true' ||
+                        window.matchMedia('(prefers-color-scheme: dark)').matches
+                    );
+                }
+            })
+            .catch(() => {
+                // fallback: localStorage or system
+                applyDarkMode(
+                    localStorage.getItem('darkMode') === 'true' ||
+                    window.matchMedia('(prefers-color-scheme: dark)').matches
+                );
+            });
+    </script>
 </body>
 </html>

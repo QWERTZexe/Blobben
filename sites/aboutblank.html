@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="../assets/icon.ico">
+    <link rel="icon" type="image/x-icon" href="./icon.ico">
     <title>Blobben - About Blank</title>
     <style>
         body {
@@ -53,6 +53,24 @@
         .button:hover {
             background-color: #0c5bbf;
         }
+
+        /* --- DARK MODE OVERRIDES --- */
+        body.dark {
+            background: #181c20;
+            color: #eee;
+        }
+        body.dark .container {
+            background-color: rgba(24,28,32,0.92);
+            color: #eee;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+        }
+        body.dark .button {
+            background-color: #1a73e8;
+            color: #eee;
+        }
+        body.dark .button:hover {
+            background-color: #0c5bbf;
+        }
     </style>
 </head>
 <body>
@@ -61,5 +79,30 @@
         <p>This is your blank page. Start browsing by entering a URL or using the search bar.</p>
         <a href="./home.html" class="button">Go to Home</a>
     </div>
+    <script>
+        // Apply dark mode based on settings.json (or fallbacks)
+        function applyDarkMode(dark) {
+            document.body.classList.toggle('dark', !!dark);
+        }
+
+        fetch("http://localhost:7859/settings.json")
+            .then(res => res.json())
+            .then(settings => {
+                if ('darkMode' in settings) {
+                    applyDarkMode(settings.darkMode);
+                } else {
+                    applyDarkMode(
+                        localStorage.getItem('darkMode') === 'true' ||
+                        window.matchMedia('(prefers-color-scheme: dark)').matches
+                    );
+                }
+            })
+            .catch(() => {
+                applyDarkMode(
+                    localStorage.getItem('darkMode') === 'true' ||
+                    window.matchMedia('(prefers-color-scheme: dark)').matches
+                );
+            });
+    </script>
 </body>
 </html>

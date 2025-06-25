@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="icon" type="image/x-icon" href="./icon.ico">
+  <link rel="stylesheet" href="fontawesome/css/all.min.css">
+  <title>Blobben - Settings</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #ff7e5f, #feb47b, #86a8e7, #91eae4);
+      background-size: 400% 400%;
+      animation: gradient 15s ease infinite;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      color: #333;
+      transition: background 0.5s, color 0.5s;
+      display: flex;
+    }
+
+    body.dark {
+      background: #181c20;
+      color: #eee;
+    }
+
+    .container {
+      flex: 1;
+      display: flex;
+      margin: 0;
+      background: none;
+      box-shadow: none;
+    }
+
+    h1 {
+      text-align: center;
+      color: #222;
+      margin-top: 0;
+    }
+    body.dark h1 { color: #eee; }
+
+    label {
+      display: block;
+      margin: 15px 0 5px;
+    }
+
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.95);
+      color: #333;
+      transition: all 0.2s ease;
+    }
+
+    body.dark input[type="text"],
+    body.dark input[type="number"],
+    body.dark select {
+      border-color: #444;
+      background: rgba(30,33,38,0.95);
+      color: #eee;
+    }
+
+    select {
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      background-size: 16px;
+      padding-right: 32px;
+    }
+
+    select:hover {
+      border-color: #1a73e8;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 2px rgba(26,115,232,0.2);
+    }
+
+    /* Base styles for options */
+    select option {
+      background-color: rgba(255,255,255,0.95);
+      color: #333;
+      padding: 8px;
+    }
+
+    body.dark select option {
+      background-color: rgba(30,33,38,0.95);
+      color: #eee;
+    }
+
+    /* Hover styles */
+    select option:hover {
+      background-color: rgba(26, 115, 232, 0.15) !important;
+      color: inherit !important;
+    }
+
+    /* Selected option */
+    select option:checked {
+      background-color: transparent !important;
+      color: inherit !important;
+    }
+
+    /* Dark mode */
+    body.dark select option:hover {
+      background-color: rgba(26, 115, 232, 0.25) !important;
+      color: #eee !important;
+    }
+
+    body.dark select option:checked {
+      background-color: transparent !important;
+      color: inherit !important;
+    }
+
+    /* Remove any focus styles that might persist */
+    select option:focus {
+      background-color: inherit !important;
+      color: inherit !important;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .proxy-submenu {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.5s ease, opacity 0.5s ease;
+    }
+
+    .proxy-submenu.open {
+      max-height: 500px;
+      opacity: 1;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    .switch input { display: none; }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #ccc;
+      border-radius: 24px;
+      transition: .4s;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px; width: 18px;
+      left: 3px; bottom: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: .4s;
+    }
+    input:checked + .slider,
+    .slider.checked {
+      background: #1a73e8;
+    }
+    input:checked + .slider:before,
+    .slider.checked:before {
+      transform: translateX(20px);
+    }
+
+    body.dark .quick-link:hover {
+        background-color: rgba(255,255,255,0.10);
+    }
+
+    /* Layout */
+    .flex-box { display:flex; }
+    .sidebar {
+      width: 220px;
+      background: rgba(255,255,255,0.95);
+      min-height: 100vh;
+      border-right: 1px solid #ddd;
+      padding-top: 20px;
+    }
+    body.dark .sidebar { 
+      background: rgba(30,33,38,0.95); 
+      border-color: #333; 
+    }
+    .sidebar ul{ 
+      list-style: none; 
+      margin: 0; 
+      padding: 0; 
+    }
+    .sidebar-item { 
+      padding: 14px 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 15px;
+      border-left: 4px solid transparent;
+      transition: all 0.2s ease;
+    }
+    .sidebar-item:hover { 
+      background: rgba(26,115,232,0.1);
+      border-left-color: rgba(26,115,232,0.5);
+    }
+    .sidebar-item.active { 
+      background: rgba(26,115,232,0.15);
+      border-left-color: #1a73e8;
+      font-weight: 500;
+    }
+    body.dark .sidebar-item:hover { 
+      background: rgba(26,115,232,0.2);
+    }
+    body.dark .sidebar-item.active { 
+      background: rgba(26,115,232,0.25);
+    }
+
+    .content { 
+      flex: 1; 
+      padding: 40px;
+      background: rgba(255,255,255,0.95);
+      margin: 20px;
+      border-radius: 12px;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+    }
+    
+    body.dark .content {
+      background: rgba(30,33,38,0.95);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    }
+
+    .section { 
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    .section.active { 
+      display: block; 
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+      margin-top: 0;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #ddd;
+      color: #1a73e8;
+    }
+
+    body.dark h2 {
+      border-bottom-color: #333;
+    }
+
+    /* Remove custom option styling to rely on default browser behaviour*/
+    select option,
+    body.dark select option,
+    select option:hover,
+    body.dark select option:hover,
+    select option:focus,
+    body.dark select option:focus,
+    select option:checked,
+    body.dark select option:checked {
+      all: unset !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container flex-box">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <ul>
+        <li class="sidebar-item active" data-section="design">
+          <i class="fas fa-paint-brush"></i> Design
+        </li>
+        <li class="sidebar-item" data-section="preferences">
+          <i class="fas fa-sliders"></i> Preferences
+        </li>
+        <li class="sidebar-item" data-section="network">
+          <i class="fas fa-network-wired"></i> Network
+        </li>
+        <li class="sidebar-item" data-section="credits">
+          <i class="fas fa-info-circle"></i> Credits
+        </li>
+      </ul>
+    </aside>
+
+    <!-- Content panels -->
+    <div class="content">
+      <!-- Design section -->
+      <section id="section-design" class="section active">
+        <h2>Design</h2>
+        <label>Appearance:
+          <input type="color" id="themeColor" value="#ffffff" style="vertical-align: middle; margin-left:8px; width:44px; height:24px; border:none; padding:0;"/>
+        </label>
+
+        <label>
+          <span class="switch">
+            <input type="checkbox" id="darkMode">
+            <span class="slider"></span>
+          </span>
+          Dark Mode (internal pages)
+        </label>
+      </section>
+
+      <!-- Preferences section -->
+      <section id="section-preferences" class="section">
+        <h2>Preferences</h2>
+        
+        <label style="margin-bottom: 20px;">Start Page:
+          <select id="startPage" style="margin-top: 8px;">
+            <option value="home">Home</option>
+            <option value="blank">Blank Page</option>
+            <option value="custom">Custom URL</option>
+          </select>
+        </label>
+
+        <div id="customUrlInput" style="display: none; margin-bottom: 20px;">
+          <label>Custom URL:
+            <input type="text" id="customStartUrl" placeholder="https://example.com" />
+          </label>
+        </div>
+
+        <label style="margin-bottom: 20px;">Home Button Location:
+          <select id="homeLocation" style="margin-top: 8px;">
+            <option value="home">Home Page</option>
+            <option value="startPage">Start Page</option>
+            <option value="custom">Custom URL</option>
+          </select>
+        </label>
+
+        <div id="customHomeUrlInput" style="display: none; margin-bottom: 20px;">
+          <label>Custom URL:
+            <input type="text" id="customHomeUrl" placeholder="https://example.com" />
+          </label>
+        </div>
+
+        <label>
+          <span class="switch">
+            <input type="checkbox" id="closeTabWarning">
+            <span class="slider"></span>
+          </span>
+          Warn before closing a tab
+        </label>
+
+        <label style="margin-top: 20px;">
+          <span class="switch">
+            <input type="checkbox" id="restoreTabs">
+            <span class="slider"></span>
+          </span>
+          Restore tabs from last session
+        </label>
+
+        <label style="margin-top: 20px;">
+          <span class="switch">
+            <input type="checkbox" id="downloadPrompt">
+            <span class="slider"></span>
+          </span>
+          Ask for download confirmation
+        </label>
+
+        <label style="margin-top: 20px;">
+          <span class="switch">
+            <input type="checkbox" id="closeWarning">
+            <span class="slider"></span>
+          </span>
+          Warn before closing browser
+        </label>
+      </section>
+
+      <!-- Network section -->
+      <section id="section-network" class="section">
+        <h2>Network</h2>
+        <label>
+          <span class="switch">
+            <input type="checkbox" id="forceHttps" />
+            <span class="slider"></span>
+          </span>
+          Force HTTPS
+        </label>
+
+        <label style="margin-top: 30px;">
+          <span class="switch">
+            <input type="checkbox" id="useProxy" />
+            <span class="slider"></span>
+          </span>
+          Use Proxy
+        </label>
+
+        <div class="proxy-submenu" id="proxyOptions">
+          <label>Proxy Type:
+            <select id="proxyType">
+              <option value="socks5">SOCKS5</option>
+              <option value="socks5h">SOCKS5h</option>
+            </select>
+          </label>
+          <label>Proxy IP:
+            <input type="text" id="proxyIP" />
+          </label>
+          <label>Proxy Port:
+            <input type="number" id="proxyPort" min="1" max="65535" />
+          </label>
+        </div>
+      </section>
+
+      <!-- Credits section -->
+      <section id="section-credits" class="section">
+        <h2>Credits</h2>
+        <div class="credits-content">
+          <p>
+            <strong>Blobben</strong> designed by <a href="https://qwertz.app/" target="_blank" rel="noopener" style="color: #1a73e8; text-decoration: none;">QWERTZ_EXE</a>
+          </p>
+          
+          <p style="margin-top: 20px; line-height: 1.6;">
+            It wasn't always easy, but in the end, Blobben is here now. I got the idea to make Blobben as a tribute to a Discord friend of mine, named Blobben. The browser icon is his profile picture.
+          </p>
+
+          <p style="margin-top: 20px;">
+            <strong>Contact:</strong> <a href="https://discord.gg/Vp6Q4FHCzf" target="_blank" rel="noopener" style="color: #1a73e8; text-decoration: none;">Discord Server</a>
+          </p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    // Store active section in session storage to persist through reloads
+    function setActiveSection(section) {
+      sessionStorage.setItem('activeSection', section);
+      document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      
+      document.querySelector(`.sidebar-item[data-section="${section}"]`).classList.add('active');
+      document.getElementById(`section-${section}`).classList.add('active');
+    }
+
+    // Prefab helpers (for future extension)
+    function setSwitch(id, value) {
+      const element = document.getElementById(id);
+      if (element) {
+        element.checked = !!value;
+        // Update the visual state of the switch
+        const slider = element.nextElementSibling;
+        if (slider) {
+          slider.classList.toggle('checked', !!value);
+        }
+      }
+    }
+    
+    function setInput(id, value) {
+      const element = document.getElementById(id);
+      if (element) {
+        element.value = value;
+      }
+    }
+
+    function setSlider(id, value) {
+      const element = document.getElementById(id);
+      if (element) {
+        element.value = value;
+        if (id === "proxyTimeout") {
+          const valueElement = document.getElementById("proxyTimeoutValue");
+          if (valueElement) {
+            valueElement.textContent = value;
+          }
+        }
+      }
+    }
+
+    // Default settings
+    const defaults = {
+      themeColor: "",
+      darkMode: false,
+      forceHttps: false,
+      useProxy: false,
+      proxyType: "socks5",
+      proxyIP: "127.0.0.1",
+      proxyPort: 1080,
+      startPage: "home",
+      customStartUrl: "",
+      homeLocation: "home",
+      customHomeUrl: "",
+      closeTabWarning: false,
+      restoreTabs: false,
+      downloadPrompt: true,
+      closeWarning: true
+    };
+
+    function applySettings(data) {
+      const settings = { ...defaults, ...data };
+      
+      // Apply all settings at once
+      setInput('themeColor', settings.themeColor || "#ffffff");
+      setSwitch('darkMode', settings.darkMode);
+      setSwitch('forceHttps', settings.forceHttps);
+      setSwitch('useProxy', settings.useProxy);
+      setInput('proxyType', settings.proxyType);
+      setInput('proxyIP', settings.proxyIP);
+      setInput('proxyPort', settings.proxyPort);
+      
+      // Start page settings
+      const startPageSelect = document.getElementById('startPage');
+      const customUrlDiv = document.getElementById('customUrlInput');
+      const customUrlInput = document.getElementById('customStartUrl');
+      
+      if (startPageSelect && customUrlInput && customUrlDiv) {
+        startPageSelect.value = settings.startPage || 'home';
+        customUrlInput.value = settings.customStartUrl || '';
+        customUrlDiv.style.display = settings.startPage === 'custom' ? 'block' : 'none';
+      }
+      
+      // Home location settings
+      const homeLocationSelect = document.getElementById('homeLocation');
+      const customHomeUrlDiv = document.getElementById('customHomeUrlInput');
+      const customHomeUrlInput = document.getElementById('customHomeUrl');
+      
+      if (homeLocationSelect && customHomeUrlInput && customHomeUrlDiv) {
+        homeLocationSelect.value = settings.homeLocation || 'home';
+        customHomeUrlInput.value = settings.customHomeUrl || '';
+        customHomeUrlDiv.style.display = settings.homeLocation === 'custom' ? 'block' : 'none';
+      }
+      
+      // Preference switches
+      setSwitch('closeTabWarning', settings.closeTabWarning);
+      setSwitch('restoreTabs', settings.restoreTabs);
+      setSwitch('downloadPrompt', settings.downloadPrompt);
+      setSwitch('closeWarning', settings.closeWarning);
+
+      // Visual updates
+      const submenu = document.getElementById('proxyOptions');
+      if (submenu) {
+        submenu.classList.toggle('open', settings.useProxy);
+      }
+      document.body.classList.toggle('dark', settings.darkMode);
+    }
+
+    function loadSettings() {
+      fetch("/settings.json")
+        .then(response => response.json())
+        .then(settings => {
+          applySettings(settings);
+        })
+        .catch(() => applySettings({})); // fallback if JSON not found
+    }
+
+    function saveSettings() {
+      const settings = {
+        themeColor: document.getElementById('themeColor').value,
+        darkMode: document.getElementById('darkMode').checked,
+        forceHttps: document.getElementById('forceHttps').checked,
+        useProxy: document.getElementById('useProxy').checked,
+        proxyType: document.getElementById('proxyType').value,
+        proxyIP: document.getElementById('proxyIP').value,
+        proxyPort: parseInt(document.getElementById('proxyPort').value) || 1080,
+        startPage: document.getElementById('startPage').value,
+        customStartUrl: document.getElementById('customStartUrl').value,
+        homeLocation: document.getElementById('homeLocation').value,
+        customHomeUrl: document.getElementById('customHomeUrl').value,
+        closeTabWarning: document.getElementById('closeTabWarning').checked,
+        restoreTabs: document.getElementById('restoreTabs').checked,
+        downloadPrompt: document.getElementById('downloadPrompt').checked,
+        closeWarning: document.getElementById('closeWarning').checked
+      };
+
+      fetch('/settings.json', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings)
+      }).then(() => {
+        // Update dark mode immediately
+        document.body.classList.toggle('dark', settings.darkMode);
+      });
+    }
+
+    // --- Autosave helpers ---
+    let saveTimer;
+    function scheduleSave() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveSettings, 300);
+    }
+
+    // Wait for DOM to be fully loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      // Add event listeners for all inputs
+      document.getElementById('themeColor').addEventListener('input', scheduleSave);
+      document.getElementById('darkMode').addEventListener('change', () => { 
+        document.body.classList.toggle('dark', document.getElementById('darkMode').checked); 
+        scheduleSave();
+      });
+
+      // Add event listeners for all switches
+      ['forceHttps', 'useProxy', 'closeTabWarning', 'restoreTabs', 'downloadPrompt', 'closeWarning'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.addEventListener('change', (e) => {
+            // Update the visual state of the switch
+            const slider = e.target.nextElementSibling;
+            if (slider) {
+              slider.classList.toggle('checked', e.target.checked);
+            }
+            scheduleSave();
+          });
+        }
+      });
+
+      // Proxy settings
+      const checkbox = document.getElementById('useProxy');
+      const submenu = document.getElementById('proxyOptions');
+      if (checkbox && submenu) {
+        checkbox.addEventListener('change', (e) => {
+          submenu.classList.toggle('open', checkbox.checked);
+          // Update the visual state of the switch
+          const slider = e.target.nextElementSibling;
+          if (slider) {
+            slider.classList.toggle('checked', checkbox.checked);
+          }
+          scheduleSave();
+        });
+      }
+
+      const proxyType = document.getElementById('proxyType');
+      const proxyIP = document.getElementById('proxyIP');
+      const proxyPort = document.getElementById('proxyPort');
+      
+      if (proxyType) proxyType.addEventListener('change', scheduleSave);
+      if (proxyIP) proxyIP.addEventListener('input', scheduleSave);
+      if (proxyPort) proxyPort.addEventListener('input', scheduleSave);
+
+      // Start page handling
+      const startPageSelect = document.getElementById('startPage');
+      const customUrlDiv = document.getElementById('customUrlInput');
+      const customUrlInput = document.getElementById('customStartUrl');
+      
+      if (startPageSelect && customUrlDiv && customUrlInput) {
+        startPageSelect.addEventListener('change', () => {
+          customUrlDiv.style.display = startPageSelect.value === 'custom' ? 'block' : 'none';
+          scheduleSave();
+        });
+        customUrlInput.addEventListener('input', scheduleSave);
+      }
+
+      // Home location handling
+      const homeLocationSelect = document.getElementById('homeLocation');
+      const customHomeUrlDiv = document.getElementById('customHomeUrlInput');
+      const customHomeUrlInput = document.getElementById('customHomeUrl');
+      
+      if (homeLocationSelect && customHomeUrlDiv && customHomeUrlInput) {
+        homeLocationSelect.addEventListener('change', () => {
+          customHomeUrlDiv.style.display = homeLocationSelect.value === 'custom' ? 'block' : 'none';
+          scheduleSave();
+        });
+        customHomeUrlInput.addEventListener('input', scheduleSave);
+      }
+
+      // Initial load
+      loadSettings();
+
+      // Restore active section from session storage
+      const savedSection = sessionStorage.getItem('activeSection') || 'design';
+      setActiveSection(savedSection);
+
+      // Sidebar navigation
+      document.querySelectorAll('.sidebar-item').forEach(item => {
+        item.addEventListener('click', () => {
+          setActiveSection(item.dataset.section);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

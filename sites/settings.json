@@ -1,0 +1,17 @@
+{
+  "themeColor": "",
+  "darkMode": false,
+  "forceHttps": false,
+  "useProxy": false,
+  "proxyType": "socks5",
+  "proxyIP": "127.0.0.1",
+  "proxyPort": 1080,
+  "startPage": "home",
+  "customStartUrl": "",
+  "homeLocation": "home",
+  "customHomeUrl": "",
+  "closeTabWarning": false,
+  "restoreTabs": false,
+  "downloadPrompt": true,
+  "closeWarning": true
+}

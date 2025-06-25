@@ -3,111 +3,307 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="../assets/icon.ico">
-    <title>Blobben - Downloads</title>
+    <link rel="icon" type="image/x-icon" href="./icon.ico">
+    <title>Downloads - Blobben</title>
     <style>
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
             background: linear-gradient(135deg, #ff7e5f, #feb47b, #86a8e7, #91eae4);
             background-size: 400% 400%;
             animation: gradient 15s ease infinite;
-            margin: 0;
-            padding: 20px;
             min-height: 100vh;
-            color: #333;
+            transition: all 0.3s;
         }
         @keyframes gradient {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: rgba(255, 255, 255, 0.8);
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-        }
-        #downloads-list {
-            list-style-type: none;
-            padding: 0;
+        body.dark {
+            background: linear-gradient(135deg, #1a1a1a, #2d2d2d, #404040, #333333);
+            color: #fff;
         }
         .download-item {
-            background-color: #fff;
-            border: 1px solid #ddd;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+        body.dark .download-item {
+            background: rgba(45, 45, 45, 0.9);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .download-info {
+            flex-grow: 1;
+        }
+        .filename {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 16px;
+            word-break: break-all;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        body.dark .progress-bar {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        .progress-fill {
+            height: 100%;
+            background: #4CAF50;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .status {
+            font-size: 14px;
+            color: #666;
+        }
+        body.dark .status {
+            color: #aaa;
+        }
+        .status.completed { color: #4CAF50; }
+        body.dark .status.completed { color: #81c784; }
+        .status.failed { color: #f44336; }
+        body.dark .status.failed { color: #e57373; }
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+        .action-btn {
+            padding: 8px 12px;
+            border: none;
             border-radius: 4px;
-            margin-bottom: 10px;
-            padding: 10px;
-            transition: box-shadow 0.3s ease;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            background: rgba(255, 255, 255, 0.8);
+            color: #333;
         }
-        .download-item:hover {
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        body.dark .action-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
         }
-        .download-item h3 {
-            margin: 0 0 10px 0;
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.9);
+            transform: translateY(-1px);
         }
-        .download-item p {
+        body.dark .action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: rgba(0, 0, 0, 0.5);
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+        body.dark .empty-state {
+            color: rgba(255, 255, 255, 0.5);
+            background: rgba(45, 45, 45, 0.9);
+        }
+        .size-info {
+            font-size: 14px;
+            color: #666;
             margin: 5px 0;
         }
-        .download-item a {
-            color: #1a73e8;
-            text-decoration: none;
+        body.dark .size-info {
+            color: #aaa;
         }
-        .download-item a:hover {
-            text-decoration: underline;
+        .download-icon {
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            color: #333;
+        }
+        body.dark .download-icon {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+        .download-icon.completed {
+            background: #e8f5e9;
+            color: #4CAF50;
+        }
+        body.dark .download-icon.completed {
+            background: rgba(76, 175, 80, 0.2);
+            color: #81c784;
+        }
+        .download-icon.failed {
+            background: #ffebee;
+            color: #f44336;
+        }
+        body.dark .download-icon.failed {
+            background: rgba(244, 67, 54, 0.2);
+            color: #e57373;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Downloads</h1>
-        <ul id="downloads-list"></ul>
+    <div id="downloads-container">
+        <div class="empty-state">No downloads yet</div>
     </div>
 
     <script>
-        function loadDownloads() {
-        fetch('../cache/downloads.json')
-            .then(response => response.json())
-            .then(downloads => {
-                // Reverse the array to show newest (last added) first
-                downloads.reverse();
-
-                const downloadsList = document.getElementById('downloads-list');
-                downloadsList.innerHTML = '';
-                downloads.forEach(download => {
-                    const li = document.createElement('li');
-                    li.className = 'download-item';
-                    li.innerHTML = `
-                        <h3><a href="#" onclick="showInExplorer('${download.path.replace(/\\/g, '/')}'); return false;">${download.filename}</a></h3>
-                        <p>URL: ${download.url}</p>
-                        <p>Status: ${download.status}</p>
-                        <p>Size: ${formatBytes(download.size)}</p>
-                    `;
-                    downloadsList.appendChild(li);
-                });
-            })
-            .catch(error => console.error('Error loading downloads:', error));
-        }
-
+        // Format bytes to human readable size
         function formatBytes(bytes, decimals = 2) {
             if (bytes === 0) return '0 Bytes';
             const k = 1024;
             const dm = decimals < 0 ? 0 : decimals;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
         }
 
-        function showInExplorer(path) {
-            console.log(`Open in explorer$ ${path}`);
+        // Format download status with icon
+        function getStatusIcon(status) {
+            switch(status.toLowerCase()) {
+                case 'completed':
+                    return '✓';
+                case 'failed':
+                    return '✕';
+                case 'canceled':
+                    return '⨯';
+                default:
+                    return '↓';
+            }
         }
 
-        loadDownloads();
+        function getStatusClass(status) {
+            switch(status.toLowerCase()) {
+                case 'completed':
+                    return 'completed';
+                case 'failed':
+                case 'canceled':
+                    return 'failed';
+                default:
+                    return '';
+            }
+        }
+
+        function createDownloadItem(download) {
+            // Escape backslashes so they survive inside the HTML attribute
+            const safePath = download.path ? download.path.replace(/\\/g, "\\\\") : "";
+            const progress = download.size ? (download.received / download.size * 100) : 0;
+            const statusClass = getStatusClass(download.status);
+            
+            return `
+                <div class="download-item" id="download-${download.id}">
+                    <div class="download-icon ${statusClass}">${getStatusIcon(download.status)}</div>
+                    <div class="download-info">
+                        <div class="filename">${download.filename}</div>
+                        <div class="size-info">
+                            ${formatBytes(download.received)} / ${formatBytes(download.size)}
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${progress}%"></div>
+                        </div>
+                        <div class="status ${statusClass}">
+                            ${download.status}
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button class="action-btn" onclick="openFolder('${safePath}')">
+                            Open folder
+                        </button>
+                    </div>
+                </div>`;
+        }
+
+        function openFolder(path) {
+            // Send message to Qt to open explorer exactly as received
+            console.log(`Open in explorer$${path}`);
+        }
+
+        function updateDownloads() {
+            fetch('/downloads')
+                .then(response => response.json())
+                .then(downloads => {
+                    const container = document.getElementById('downloads-container');
+                    
+                    // Clear container if we have downloads
+                    if (downloads && downloads.length > 0) {
+                        // Remove empty state if it exists
+                        const emptyState = container.querySelector('.empty-state');
+                        if (emptyState) {
+                            container.innerHTML = '';
+                        }
+                    }
+
+                    // Update existing downloads or add new ones
+                    downloads.forEach(download => {
+                        const existingItem = document.getElementById(`download-${download.id}`);
+                        if (existingItem) {
+                            // Update progress and status of existing download
+                            const progress = download.size ? (download.received / download.size * 100) : 0;
+                            const progressFill = existingItem.querySelector('.progress-fill');
+                            const sizeInfo = existingItem.querySelector('.size-info');
+                            const status = existingItem.querySelector('.status');
+                            const icon = existingItem.querySelector('.download-icon');
+                            
+                            progressFill.style.width = `${progress}%`;
+                            sizeInfo.textContent = `${formatBytes(download.received)} / ${formatBytes(download.size)}`;
+                            status.textContent = download.status;
+                            status.className = `status ${getStatusClass(download.status)}`;
+                            icon.className = `download-icon ${getStatusClass(download.status)}`;
+                            icon.textContent = getStatusIcon(download.status);
+                        } else {
+                            // Add new download item
+                            container.insertAdjacentHTML('afterbegin', createDownloadItem(download));
+                        }
+                    });
+                    
+                    // Show empty state only if we have no downloads
+                    if (!downloads || downloads.length === 0) {
+                        container.innerHTML = '<div class="empty-state">No downloads yet</div>';
+                    }
+                });
+        }
+
+        // Start periodic updates
+        updateDownloads(); // Initial update
+        const updateInterval = setInterval(updateDownloads, 1000); // Update every second
+
+        // Clean up interval when page is hidden/closed
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                clearInterval(updateInterval);
+            } else {
+                updateDownloads(); // Immediate update when page becomes visible
+                setInterval(updateDownloads, 1000);
+            }
+        });
+
+        // Check if dark mode is enabled
+        fetch('/settings.json')
+            .then(response => response.json())
+            .then(settings => {
+                if (settings.darkMode) {
+                    document.body.classList.add('dark');
+                }
+            });
+
+        // Initial load
+        updateDownloads();
+        // Update every second for progress
+        setInterval(updateDownloads, 1000);
     </script>
 </body>
 </html>

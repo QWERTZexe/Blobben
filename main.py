@@ -1,20 +1,69 @@
 import socket
 import sys, os, json, subprocess
-from PyQt6.QtCore import QUrl, QSize, QDateTime, Qt, QByteArray, QObject, pyqtSignal, QTimer
-from PyQt6.QtWidgets import QApplication, QMainWindow, QToolBar, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QTabWidget, QFrame, QLabel, QProgressBar, QToolButton, QMenu, QTextEdit, QSplitter, QSplitter
+import threading
+#subprocess.Popen("ssh -D 1080 root@87.106.167.115")
+from PyQt6.QtCore import QUrl, QSize, QDateTime, Qt, QByteArray, QObject, pyqtSignal, QTimer, QFileSystemWatcher
+from PyQt6.QtWidgets import QApplication, QMainWindow, QToolBar, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QTabWidget, QFrame, QLabel, QProgressBar, QToolButton, QMenu, QTextEdit, QSplitter, QSplitter, QMessageBox
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineDownloadRequest
-from PyQt6.QtGui import QIcon, QFont, QAction
+from PyQt6.QtGui import QIcon, QFont, QAction, QPalette, QColor
 from PyQt6.QtWebEngineCore import QWebEngineUrlScheme, QWebEngineProfile, QWebEngineCookieStore
-from PyQt6.QtNetwork import QNetworkCookie
+from PyQt6.QtNetwork import QNetworkCookie, QNetworkProxy
+import sites
 
 # <a href="https://www.flaticon.com/free-icons/return" title="return icons">Return icons created by Kiranshastry - Flaticon</a>
 # <a href="https://www.flaticon.com/free-icons/reload" title="reload icons">Reload icons created by Uniconlabs - Flaticon</a>
 # <a href="https://www.flaticon.com/free-icons/home" title="home icons">Home icons created by Freepik - Flaticon</a>
 # <a href="https://www.flaticon.com/free-icons/save" title="save icons">Save icons created by Bharat Icons - Flaticon</a>
+# <a href="https://www.flaticon.com/free-icons/settings" title="settings icons">Settings icons created by logisstudio - Flaticon</a>
 
 cwd = os.path.dirname(os.path.abspath(sys.argv[0]))
-version = "0.2"
+version = "0.3"
+# Path to settings.json served by the built-in HTTP backend so both the
+# HTML pages and the Qt application read/write the same file.
+SETTINGS_PATH = f"{cwd}/sites/settings.json"
+
+def load_settings():
+    try:
+        with open(SETTINGS_PATH, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Could not load settings: {e}")
+        # Default settings if file is missing or invalid
+        return {
+            "themeColor": "",  # empty means default (light)
+            "darkMode": False,
+            "forceHttps": False,
+            "useProxy": False,
+            "proxyType": "socks5h",
+            "proxyIP": "127.0.0.1",
+            "proxyPort": 1080,
+            "startPage": "home",
+            "customStartUrl": "",
+            "homeLocation": "home",
+            "customHomeUrl": "",
+            "closeTabWarning": False,
+            "restoreTabs": False,
+            "downloadPrompt": True,
+            "closeWarning": True  # Warn before closing browser
+        }
+
+def apply_proxy_settings(settings):
+    if settings.get("useProxy"):
+        proxy_type = settings.get("proxyType", "socks5h")
+        proxy_ip = settings.get("proxyIP", "127.0.0.1")
+        proxy_port = settings.get("proxyPort", 1080)
+        # Map to Chromium's expected proxy scheme
+        scheme = "socks5" if proxy_type == "socks5" else "socks5h"
+        os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = f"--proxy-server={scheme}://{proxy_ip}:{proxy_port}"
+        # Also update QtNetwork proxy immediately (useful for runtime changes)
+        QNetworkProxy.setApplicationProxy(QNetworkProxy(QNetworkProxy.ProxyType.Socks5Proxy, proxy_ip, proxy_port))
+        print(f"Proxy enabled: {os.environ['QTWEBENGINE_CHROMIUM_FLAGS']}")
+    else:
+        # Remove proxy if not used
+        os.environ.pop("QTWEBENGINE_CHROMIUM_FLAGS", None)
+        QNetworkProxy.setApplicationProxy(QNetworkProxy(QNetworkProxy.ProxyType.NoProxy))
+        print("Proxy disabled.")
 
 HOST = "127.0.0.1"
 PORT = 58352  # Pick a port not in use
@@ -40,11 +89,15 @@ class DownloadManager(QObject):
         self.load_download_history()
 
     def add_download(self, download: QWebEngineDownloadRequest):
+        # Get the user's downloads directory and ensure proper path format
+        downloads_dir = os.path.abspath(os.path.expanduser("~/Downloads"))
+        download.setDownloadDirectory(downloads_dir)
+        
         download_info = {
             'id': len(self.downloads),
             'url': download.url().toString(),
             'filename': download.downloadFileName(),
-            'path': os.path.join(download.downloadDirectory(), download.downloadFileName()),
+            'path': os.path.normpath(os.path.join(downloads_dir, download.downloadFileName())),
             'size': download.totalBytes(),
             'received': 0,
             'status': 'In Progress'
@@ -58,11 +111,21 @@ class DownloadManager(QObject):
         self.downloadStarted.emit()
 
     def update_progress(self, download_id, download):
+        # Update both received bytes and total bytes (in case size was unknown initially)
         self.downloads[download_id]['received'] = download.receivedBytes()
+        self.downloads[download_id]['size'] = download.totalBytes()
+        self.save_download_history()  # Save after each progress update
 
     def update_state(self, download_id, download):
+        # Update final size and received bytes
+        self.downloads[download_id]['size'] = download.totalBytes()
+        self.downloads[download_id]['received'] = download.receivedBytes()
+        
         if download.state() == QWebEngineDownloadRequest.DownloadState.DownloadCompleted:
             self.downloads[download_id]['status'] = 'Completed'
+            # Ensure received matches total size for completed downloads
+            if self.downloads[download_id]['size'] > 0:
+                self.downloads[download_id]['received'] = self.downloads[download_id]['size']
             self.downloadFinished.emit()
         elif download.state() == QWebEngineDownloadRequest.DownloadState.DownloadCancelled:
             self.downloads[download_id]['status'] = 'Canceled'
@@ -99,20 +162,57 @@ class CustomWebEnginePage(QWebEnginePage):
             """)
             
     def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
+        # Only accept messages from our downloads page
+        if not sourceID.startswith("http://localhost:7859/downloads.html"):
+            return
+            
         if message.startswith("Open in explorer$"):
             print(message)
-            path = message.split("$")[1].strip()
+            path = message.split("$")[1]
             self.show_in_explorer(path)
 
     def show_in_explorer(self, path):
-        if os.name == 'nt':  # Windows
-            print(path)
-            os.startfile(os.path.dirname(path))
-        elif os.name == 'posix':  # macOS and Linux
-            try:
-                subprocess.call(["open", "-R", path])
-            except:
-                subprocess.call(["xdg-open", os.path.dirname(path)])
+        print(path)
+        try:
+            # Normalize path and ensure proper format
+            path = os.path.normpath(path.replace('/', os.path.sep))
+            dir_path = os.path.dirname(os.path.abspath(path))
+            
+            # Create directory if it doesn't exist (Downloads folder might be missing)
+            os.makedirs(dir_path, exist_ok=True)
+            
+            if os.name == 'nt':  # Windows
+                # Use explorer.exe to ensure the folder opens
+                subprocess.run(['explorer', dir_path], check=False)
+            elif os.name == 'posix':  # macOS and Linux
+                try:
+                    subprocess.run(['open', dir_path], check=False)
+                except:
+                    subprocess.run(['xdg-open', dir_path], check=False)
+            
+            print(f"Opening directory: {dir_path}")
+        except Exception as e:
+            print(f"Error opening folder: {e}")
+
+    # Handle links that request a new window (e.g., target="_blank", Bing ads etc.)
+    def createWindow(self, _type):  # noqa: N802 (Qt override)
+        # Traverse up the parents to find the Browser instance
+        parent = self.parent()
+        browser = None
+        while parent is not None and browser is None:
+            if isinstance(parent, Browser):
+                browser = parent
+            parent = parent.parent()
+
+        if browser is None:
+            return None  # fallback – block
+
+        # Add a new tab and return its page so the navigation happens there
+        browser.add_new_tab()
+        new_toolbar = browser.tabs.currentWidget()
+        if isinstance(new_toolbar, Toolbar):
+            return new_toolbar.web_view.page()
+        return None
 
 class Toolbar(QWidget):
     resetColor = pyqtSignal()
@@ -153,6 +253,7 @@ class Toolbar(QWidget):
         self.home_button.setIcon(QIcon(f"{cwd}/assets/home.png"))
         self.home_button.setFixedSize(QSize(35, 35))
         self.home_button.setIconSize(QSize(25, 25))
+        self.home_button.clicked.connect(self.go_home)
         self.toolbar.addWidget(self.home_button)
 
         # URL bar
@@ -167,18 +268,6 @@ class Toolbar(QWidget):
         self.download_button.setIconSize(QSize(25, 25))
         self.toolbar.addWidget(self.download_button)
 
-        # Download menu
-        # self.download_menu = QMenu(self)
-        # self.download_menu.aboutToShow.connect(self.on_download_button_clicked)
-        # self.download_button.setMenu(self.download_menu)
-        # self.download_complete = False
-
-        # View all downloads action
-        # view_all_action = QAction("View all downloads", self)
-        # view_all_action.triggered.connect(self.view_all_downloads)
-        # self.download_menu.addAction(view_all_action)
-        # self.download_menu.addSeparator()
-
         # Source code button
         self.source_button = QPushButton()
         self.source_button.setIcon(QIcon(f"{cwd}/assets/source.png"))
@@ -186,6 +275,13 @@ class Toolbar(QWidget):
         self.source_button.setIconSize(QSize(25, 25))
         self.source_button.clicked.connect(self.toggle_source_view)
         self.toolbar.addWidget(self.source_button)
+        # Source code button
+        self.settings_button = QPushButton()
+        self.settings_button.setIcon(QIcon(f"{cwd}/assets/settings.png"))
+        self.settings_button.setFixedSize(QSize(35, 35))
+        self.settings_button.setIconSize(QSize(25, 25))
+        self.settings_button.clicked.connect(lambda: self.web_view.setUrl(QUrl(f"http://localhost:7859/settings.html")))
+        self.toolbar.addWidget(self.settings_button)
 
         self.separator = QFrame()
         self.separator.setFrameShape(QFrame.Shape.HLine)
@@ -220,7 +316,7 @@ class Toolbar(QWidget):
         self.forward_button.clicked.connect(self.web_view.forward)
         self.reload_button.clicked.connect(self.reload_page)
         self.download_button.clicked.connect(self.on_download_button_clicked)
-        self.home_button.clicked.connect(lambda: self.web_view.setUrl(QUrl.fromLocalFile(f"{cwd}/sites/home.html")))
+        self.home_button.clicked.connect(self.go_home)
         self.url_bar.returnPressed.connect(self.navigate_to_url)
         self.web_view.urlChanged.connect(self.update_url)
 
@@ -275,23 +371,6 @@ class Toolbar(QWidget):
         current_url = self.web_view.url()
         self.web_view.setUrl(current_url)
 
-    # def view_all_downloads(self):
-        # a=cwd.replace("\\", "/")
-        # self.web_view.setUrl(QUrl(f"file:///{a}/sites/downloads.html"))
-
-    # def update_download_menu(self, downloads):
-        # Clear previous download items
-        # for action in self.download_menu.actions()[2:]:
-            # self.download_menu.removeAction(action)
-
-        # Add recent downloads (limit to 5 for example)
-        # for download in downloads[:5]:
-            # action = QAction(f"{download['filename']} - {download['status']}", self)
-            # self.download_menu.addAction(action)
-
-        # if len(downloads) > 5:
-            # self.download_menu.addAction("View more in Downloads page")
-
     def on_download_started(self):
         self.download_button.setIcon(QIcon(f"{cwd}/assets/download-red.png"))
         self.download_complete = False
@@ -306,28 +385,64 @@ class Toolbar(QWidget):
             self.download_button.setIcon(QIcon(f"{cwd}/assets/download.png"))
             self.download_complete = False 
         a=cwd.replace("\\", "/")
-        self.web_view.setUrl(QUrl(f"file:///{a}/sites/downloads.html"))
+        self.web_view.setUrl(QUrl(f"http://localhost:7859/downloads.html"))
+
+    def go_home(self):
+        # Use home location setting
+        home_location = current_settings.get("homeLocation", "home")
+        if home_location == "startPage":
+            # Use start page setting
+            start_page = current_settings.get("startPage", "home")
+            if start_page == "blank":
+                self.web_view.setUrl(QUrl(f"http://localhost:7859/aboutblank.html"))
+            elif start_page == "custom":
+                custom_url = current_settings.get("customStartUrl", "")
+                if custom_url:
+                    self.web_view.setUrl(QUrl(custom_url))
+                else:
+                    self.web_view.setUrl(QUrl(f"http://localhost:7859/home.html"))
+            else:  # default to home
+                self.web_view.setUrl(QUrl(f"http://localhost:7859/home.html"))
+        elif home_location == "custom":
+            custom_url = current_settings.get("customHomeUrl", "")
+            if custom_url:
+                self.web_view.setUrl(QUrl(custom_url))
+            else:
+                self.web_view.setUrl(QUrl(f"http://localhost:7859/home.html"))
+        else:  # default to home page
+            self.web_view.setUrl(QUrl(f"http://localhost:7859/home.html"))
 
     def navigate_to_url(self):
+        print("navigating")
         q = QUrl(self.url_bar.text())
+        
         b = cwd.replace("\\","/")
         c = self.url_bar.text().replace("blobben://","")
         if self.url_bar.text().startswith("about:"):
-            q = QUrl(f"file:///{b}/sites/aboutblank.html")
+            q = QUrl(f"http://localhost:7859/aboutblank.html")
         if self.url_bar.text() == "blobben://":
-            q = QUrl(f"file:///{b}/sites/home.html")
+            q = QUrl(f"http://localhost:7859//home.html")
         elif self.url_bar.text().startswith("blobben://"):
-            q = QUrl(f"file:///{b}/sites/{c}" if self.url_bar.text().endswith(".html") else f"file:///{b}/sites/{c}.html")
+            q = QUrl(f"http://localhost:7859/{c}" if self.url_bar.text().endswith(".html") else f"http://localhost:7859/{c}.html")
         if q.scheme() == "":
             if not self.url_bar.text() == "":
                 q = QUrl(f"https://www.bing.com/search?q={self.url_bar.text()}")
             else:
-                q = QUrl(f"file:///{b}/sites/aboutblank.html")
+                q = QUrl(f"http://localhost:7859/aboutblank.html")
+
+        # Force HTTPS upgrade if enabled in settings
+        try:
+            if current_settings.get("forceHttps") and q.scheme() == "http":
+                q = QUrl(q.toString().replace("http://", "https://", 1))
+        except Exception:
+            pass
+
+        print(q)
         self.web_view.setUrl(q)
 
     def update_url(self, q):
         b = cwd.replace("\\","/")
-        a=f"file:///{b}/sites/".lower()
+        a=f"http://localhost:7859/".lower()
         c = q.toString().lower().replace(a,"blobben://")
         if a.lower() in q.toString().lower():
             self.url_bar.setText(f"{c}")
@@ -342,6 +457,15 @@ class Browser(QMainWindow):
         super().__init__()
         self.setWindowTitle(f"Blobben v{version}")
         self.setWindowIcon(QIcon(f"{cwd}/assets/icon.png"))
+
+        # Clear downloads on startup
+        downloads_file = f"{cwd}/cache/downloads.json"
+        try:
+            os.makedirs(os.path.dirname(downloads_file), exist_ok=True)
+            with open(downloads_file, 'w') as f:
+                json.dump([], f)
+        except Exception as e:
+            print(f"Error clearing downloads: {e}")
 
         self.tabs = QTabWidget()
         self.tabs.setTabsClosable(True)
@@ -380,11 +504,24 @@ class Browser(QMainWindow):
         self.download_manager = DownloadManager(self)
         self.download_manager.downloadStarted.connect(self.on_download_started)
         self.download_manager.downloadFinished.connect(self.on_download_finished)
-        self.profile.downloadRequested.connect(self.download_manager.add_download)
+        self.profile.downloadRequested.connect(self.handle_download_request)
 
-        self.add_new_tab()
+        # Restore tabs if enabled
+        if current_settings.get("restoreTabs", False):
+            try:
+                with open(f"{cwd}/cache/tabs.json", "r") as f:
+                    saved_tabs = json.load(f)
+                    for url in saved_tabs:
+                        self.add_new_tab(QUrl(url))
+            except Exception:
+                pass  # File doesn't exist or is invalid
+        
+        if not self.tabs.count():  # No tabs restored, add default
+            self.add_new_tab()
+        
         self.showMaximized()
         self.apply_cookies()
+
     def on_download_started(self):
         for i in range(self.tabs.count()):
             tab = self.tabs.widget(i)
@@ -449,6 +586,30 @@ class Browser(QMainWindow):
                 self.cookie_store.setCookie(cookie)
 
     def closeEvent(self, event):
+        # Check if warning is needed
+        if current_settings.get("closeWarning", True):
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Icon.Warning)
+            msg.setText("Close Blobben?")
+            msg.setInformativeText("Are you sure you want to close the browser?")
+            msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if msg.exec() == QMessageBox.StandardButton.No:
+                event.ignore()
+                return
+
+        # Save open tabs if enabled
+        if current_settings.get("restoreTabs", False):
+            tabs = []
+            for i in range(self.tabs.count()):
+                widget = self.tabs.widget(i)
+                if isinstance(widget, Toolbar):
+                    url = widget.web_view.url().toString()
+                    # Don't save internal pages
+                    if not url.startswith("http://localhost:7859/"):
+                        tabs.append(url)
+            with open(f"{cwd}/cache/tabs.json", "w") as f:
+                json.dump(tabs, f)
+        
         self.save_cookies()
         super().closeEvent(event)
 
@@ -460,8 +621,18 @@ class Browser(QMainWindow):
 
     def add_new_tab(self, qurl=None):
         if qurl is None or isinstance(qurl,bool):
-            urlcwd = cwd.replace("\\","/")
-            qurl = QUrl.fromLocalFile(f"{cwd}/sites/home.html")
+            # Use start page setting
+            start_page = current_settings.get("startPage", "home")
+            if start_page == "blank":
+                qurl = QUrl(f"http://localhost:7859/aboutblank.html")
+            elif start_page == "custom":
+                custom_url = current_settings.get("customStartUrl", "")
+                if custom_url:
+                    qurl = QUrl(custom_url)
+                else:
+                    qurl = QUrl(f"http://localhost:7859/home.html")
+            else:  # default to home
+                qurl = QUrl(f"http://localhost:7859/home.html")
         toolbar = Toolbar(self)
         toolbar.resetColor.connect(self.resetColors)
         toolbar.web_view.setUrl(qurl)
@@ -473,6 +644,17 @@ class Browser(QMainWindow):
     def close_current_tab(self, i):
         if self.tabs.count() < 2:
             return
+        
+        # Check if warning is needed
+        if current_settings.get("closeTabWarning", True):
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Icon.Warning)
+            msg.setText("Close this tab?")
+            msg.setInformativeText("Are you sure you want to close this tab?")
+            msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if msg.exec() == QMessageBox.StandardButton.No:
+                return
+
         self.tabs.removeTab(i)
 
     def update_tab_title(self, index, title):
@@ -481,7 +663,60 @@ class Browser(QMainWindow):
     def update_tab_icon(self, index, icon):
         self.tabs.setTabIcon(index, icon)
 
+    def handle_download_request(self, download):
+        if current_settings.get("downloadPrompt", True):
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Icon.Question)
+            msg.setText("Download File")
+            msg.setInformativeText(f"Do you want to download {download.downloadFileName()}?")
+            msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if msg.exec() == QMessageBox.StandardButton.No:
+                download.cancel()
+                return
+        
+        self.download_manager.add_download(download)
+
+# ---------------------------
+#  Qt Dark-Theme helper
+# ---------------------------
+def apply_theme(app, color_hex: str | None, default_palette: QPalette | None = None):
+    """Apply a custom palette using the provided base color in hex; if None/empty revert to default."""
+    if not color_hex:
+        if default_palette is not None:
+            app.setPalette(default_palette)
+            for w in QApplication.allWidgets():
+                w.update()
+        return
+
+    app.setStyle("Fusion")
+    base = QColor(color_hex)
+    # Determine appropriate text color based on luminance
+    luminance = 0.299 * base.red() + 0.587 * base.green() + 0.114 * base.blue()
+    text_col = Qt.GlobalColor.black if luminance > 186 else Qt.GlobalColor.white
+
+    palette = QPalette()
+    palette.setColor(QPalette.ColorRole.Window, base)
+    palette.setColor(QPalette.ColorRole.WindowText, text_col)
+    palette.setColor(QPalette.ColorRole.Base, base.darker(120))
+    palette.setColor(QPalette.ColorRole.AlternateBase, base.darker(110))
+    palette.setColor(QPalette.ColorRole.ToolTipBase, text_col)
+    palette.setColor(QPalette.ColorRole.ToolTipText, text_col)
+    palette.setColor(QPalette.ColorRole.Text, text_col)
+    palette.setColor(QPalette.ColorRole.Button, base.darker(105))
+    palette.setColor(QPalette.ColorRole.ButtonText, text_col)
+    palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
+    palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
+    palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
+    palette.setColor(QPalette.ColorRole.HighlightedText, text_col)
+    app.setPalette(palette)
+    for w in QApplication.allWidgets():
+        w.update()
+
 if __name__ == "__main__":
+    # Load user settings and apply proxy flags before the Qt engine starts
+    settings = load_settings()
+    apply_proxy_settings(settings)
+
     url = sys.argv[1] if len(sys.argv) > 1 else None
     if url and send_url_to_running_instance(url):
         sys.exit(0)
@@ -492,12 +727,74 @@ if __name__ == "__main__":
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
         # Set up the IPC server
     app = QApplication(sys.argv)
+    # Apply dark theme if enabled
+    default_palette = QPalette(app.palette())
+    apply_theme(app, settings.get("themeColor"), default_palette)
+
+    # ---------------------------
+    #  Settings hot-reloader
+    # ---------------------------
+    current_settings = settings.copy()  # mutable dict we will update in place
+
+    def on_settings_updated():
+        try:
+            new_settings = load_settings()
+        except Exception:
+            return  # malformed file, ignore
+
+        # --- Dark mode toggle for internal pages ---
+        old_dark = current_settings.get("darkMode")
+        new_dark = new_settings.get("darkMode")
+        if new_dark != old_dark:
+            js_toggle = f'document.body.classList.toggle("dark", {str(bool(new_dark)).lower()});'
+            for i in range(window.tabs.count()):
+                widget = window.tabs.widget(i)
+                if isinstance(widget, Toolbar):
+                    widget.web_view.page().runJavaScript(js_toggle)
+
+        # --- Theme color change ---
+        old_color = current_settings.get("themeColor")
+        new_color = new_settings.get("themeColor")
+        if new_color != old_color:
+            apply_theme(app, new_color, default_palette)
+
+        # --- Proxy toggle / change ---
+        if (new_settings.get("useProxy") != current_settings.get("useProxy") or
+            any(new_settings.get(k) != current_settings.get(k) for k in ("proxyType","proxyIP","proxyPort"))):
+            if new_settings.get("useProxy"):
+                proxy_type = new_settings.get("proxyType", "socks5h")
+                qtype = QNetworkProxy.ProxyType.Socks5Proxy if proxy_type.startswith("socks5") else QNetworkProxy.ProxyType.Socks5Proxy
+                proxy = QNetworkProxy(qtype, new_settings.get("proxyIP", "127.0.0.1"), new_settings.get("proxyPort", 1080))
+            else:
+                proxy = QNetworkProxy(QNetworkProxy.ProxyType.NoProxy)
+            QNetworkProxy.setApplicationProxy(proxy)
+            # Reload pages so new proxy takes effect
+            for i in range(window.tabs.count()):
+                widget = window.tabs.widget(i)
+                if isinstance(widget, Toolbar):
+                    widget.web_view.reload()
+
+        # Re-add path in case the file was replaced (QFileSystemWatcher limitation)
+        if SETTINGS_PATH not in watcher.files():
+            watcher.addPath(SETTINGS_PATH)
+
+        # update stored settings dict in place to avoid global/nonlocal rebinding
+        current_settings.clear()
+        current_settings.update(new_settings)
+
+    watcher = QFileSystemWatcher([SETTINGS_PATH])
+    watcher.fileChanged.connect(lambda _: on_settings_updated())
+
     window = Browser()
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind((HOST, PORT))
     server.listen(1)
     server.setblocking(False)
+    def startBackend():
+        sites.backend(cwd)
+        os.chdir(cwd)
+    threading.Thread(target=startBackend, daemon=True).start()
     def check_for_new_urls():
             try:
                 conn, _ = server.accept()
