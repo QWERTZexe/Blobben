@@ -1,7 +1,6 @@
 import socket
 import sys, os, json, subprocess
 import threading
-#subprocess.Popen("ssh -D 1080 root@87.106.167.115")
 from PyQt6.QtCore import QUrl, QSize, QDateTime, Qt, QByteArray, QObject, pyqtSignal, QTimer, QFileSystemWatcher
 from PyQt6.QtWidgets import QApplication, QMainWindow, QToolBar, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QTabWidget, QFrame, QLabel, QProgressBar, QToolButton, QMenu, QTextEdit, QSplitter, QSplitter, QMessageBox
 from PyQt6.QtWebEngineWidgets import QWebEngineView
